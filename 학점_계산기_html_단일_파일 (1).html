@@ -1,0 +1,982 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HKUST Grade Calculator (TGA / CGA / BCGA)</title>
+  <style>
+    :root{
+      --nav:#244b86;
+      --nav2:#1f3f72;
+      --bg:#eef3fb;
+      --card:#ffffff;
+      --muted:#6a7b91;
+      --text:#0f172a;
+      --blue:#2f6df6;
+      --yellow:#f2c84b;
+      --green:#2fbf71;
+      --danger:#b33a2b;
+      --danger2:#9e2f24;
+      --shadow: 0 10px 28px rgba(15,23,42,.10);
+      --radius: 18px;
+    }
+    *{box-sizing:border-box}
+    body{margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Noto Sans KR", "Apple SD Gothic Neo", sans-serif; background: var(--bg); color:var(--text)}
+
+    .nav{
+      position:sticky; top:0; z-index:10;
+      background: linear-gradient(180deg, var(--nav), var(--nav2));
+      color:#fff;
+      padding:14px 16px;
+      box-shadow: 0 8px 20px rgba(0,0,0,.18);
+    }
+    .nav-inner{max-width:980px; margin:0 auto; display:flex; align-items:center; justify-content:center; position:relative}
+    .nav-title{font-weight:800; letter-spacing:.2px; font-size:22px}
+    .nav-left{position:absolute; left:0; display:flex; align-items:center; gap:10px; opacity:.95}
+    .nav-left a{color:#fff; text-decoration:none; font-weight:700; font-size:14px}
+
+    .wrap{max-width:980px; margin:18px auto 44px; padding:0 14px}
+
+    .btnrow{display:flex; gap:14px; margin:14px 0 12px}
+    .btn{
+      flex:1;
+      border:0;
+      border-radius:999px;
+      padding:14px 18px;
+      font-weight:800;
+      color:#fff;
+      cursor:pointer;
+      box-shadow: 0 8px 18px rgba(15,23,42,.15);
+      transition: transform .06s ease, filter .15s ease;
+    }
+    .btn:active{transform: translateY(1px)}
+    .btn.add{background: linear-gradient(180deg, #2f6df6, #2459cc)}
+    .btn.reset{background: linear-gradient(180deg, var(--danger), var(--danger2))}
+
+    .card{
+      background: var(--card);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      border: 2px solid rgba(46,90,168,.16);
+    }
+
+    .chart-card{padding:14px 14px 10px}
+    .card-title{font-weight:900; text-align:center; margin:10px 0 12px; font-size:18px}
+    .chart-wrap{border:2px solid rgba(46,90,168,.22); border-radius: 16px; padding:10px; background:#fff}
+    canvas{width:100%; height:230px; display:block}
+
+    .terms{margin-top:14px; display:flex; flex-direction:column; gap:14px}
+
+    details.term{border-radius: 16px; overflow:hidden; border:0}
+    details.term > summary{
+      list-style:none;
+      cursor:pointer;
+      padding:16px 16px;
+      background: linear-gradient(180deg, #e9f1ff, #e2ecff);
+      border:2px solid rgba(46,90,168,.18);
+      border-radius: 16px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+    }
+    details.term[open] > summary{border-bottom-left-radius: 0; border-bottom-right-radius: 0}
+    details.term > summary::-webkit-details-marker{display:none}
+
+    .term-left{display:flex; flex-direction:column; gap:6px}
+    .term-name{font-weight:900; font-size:22px; letter-spacing:.2px}
+    .term-credits{font-weight:700; color:var(--text)}
+    .term-credits span{color:var(--muted); font-weight:800}
+
+    .badges{display:flex; align-items:center; gap:10px}
+    .badge{
+      width:48px; height:48px;
+      border-radius:999px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-weight:900;
+      font-size:12px;
+      color: var(--text);
+      border:3px solid rgba(15,23,42,.15);
+      position:relative;
+      flex: 0 0 auto;
+    }
+    .badge .num{position:absolute; top:10px; font-size:12px}
+    .badge .lbl{position:absolute; bottom:7px; font-size:10px; letter-spacing:.4px}
+    .badge.tga{background: rgba(242,200,75,.95)}
+    .badge.cga{background: rgba(47,109,246,.95); color:#fff}
+    .badge.bcga{background: rgba(47,191,113,.95); color:#fff}
+
+    .term-body{
+      background:#fff;
+      border:2px solid rgba(46,90,168,.18);
+      border-top:0;
+      border-bottom-left-radius: 16px;
+      border-bottom-right-radius: 16px;
+      padding:12px;
+    }
+
+    .course{
+      background:#f7f9ff;
+      border:1px solid rgba(46,90,168,.14);
+      border-radius: 14px;
+      padding:12px 12px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      margin-bottom:10px;
+    }
+    .course:last-child{margin-bottom:0}
+
+    .c-left{display:flex; flex-direction:column; gap:6px}
+    .code{font-weight:1000; letter-spacing:.3px; font-size:20px}
+    .meta{color:var(--muted); font-weight:800; font-size:12px}
+
+    .bc-tag{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      height:18px;
+      padding:0 8px;
+      border-radius:999px;
+      font-size:11px;
+      font-weight:1000;
+      letter-spacing:.4px;
+      background: rgba(47,191,113,.18);
+      color:#0b3d22;
+      border:1px solid rgba(47,191,113,.35);
+      margin-left:8px;
+      vertical-align: middle;
+    }
+
+    .name{color:var(--text); font-weight:700}
+
+    .grade-pill{
+      min-width:56px;
+      height:34px;
+      border-radius: 10px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-weight:1000;
+      letter-spacing:.4px;
+      border:2px solid rgba(15,23,42,.10);
+      background:#eef2ff;
+      cursor:pointer;
+      user-select:none;
+    }
+    .grade-pill.filled{background:#dfffdc}
+    .grade-pill.blank{background:#eff7ff}
+
+    .course-actions{display:flex; gap:8px; align-items:center}
+    .iconbtn{
+      border:1px solid rgba(15,23,42,.12);
+      background:#fff;
+      border-radius: 10px;
+      padding:8px 10px;
+      cursor:pointer;
+      font-weight:900;
+      color:var(--text);
+    }
+    .iconbtn:hover{filter:brightness(.98)}
+
+    .overlay{position:fixed; inset:0; background: rgba(2,6,23,.45); display:none; align-items:center; justify-content:center; padding:16px; z-index:50}
+    .overlay.show{display:flex}
+    .modal{
+      width:min(720px, 100%);
+      background:#fff;
+      border-radius: 20px;
+      box-shadow: 0 18px 60px rgba(0,0,0,.25);
+      overflow:hidden;
+      border:2px solid rgba(46,90,168,.22);
+    }
+    .modal-h{
+      background: linear-gradient(180deg, #e9f1ff, #e2ecff);
+      padding:14px 16px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      border-bottom:2px solid rgba(46,90,168,.15);
+    }
+    .modal-h strong{font-size:16px}
+    .modal-b{padding:14px 16px}
+
+    .grid{display:grid; grid-template-columns: 1fr; gap:12px}
+    @media (min-width: 720px){
+      .grid{grid-template-columns: 1fr 1fr}
+    }
+    .field{display:flex; flex-direction:column; gap:6px}
+    .field label{font-size:12px; color:var(--muted); font-weight:900}
+    input, select{
+      height:42px;
+      border-radius: 12px;
+      border:1px solid rgba(15,23,42,.14);
+      padding:0 12px;
+      font-weight:800;
+      outline:none;
+    }
+    input:focus, select:focus{border-color: rgba(47,109,246,.45); box-shadow: 0 0 0 4px rgba(47,109,246,.12)}
+
+    .modal-actions{display:flex; gap:10px; justify-content:flex-end; margin-top:12px}
+    .btn2{border:0; border-radius: 12px; height:42px; padding:0 14px; font-weight:1000; cursor:pointer}
+    .btn2.primary{background: rgba(47,109,246,.14); color:#173a7a; border:1px solid rgba(47,109,246,.28)}
+    .btn2.danger{background: rgba(179,58,43,.12); color:#7a1d15; border:1px solid rgba(179,58,43,.24)}
+
+    .help{
+      margin-top:10px;
+      font-size:12px;
+      color:var(--muted);
+      line-height:1.5;
+    }
+
+    .small{font-size:12px; color:var(--muted); font-weight:800}
+
+    #tests{max-width:980px; margin:10px auto 0; padding:0 14px; font-size:12px; color:rgba(15,23,42,.55)}
+    #tests b{color:rgba(15,23,42,.85)}
+  </style>
+</head>
+<body>
+  <div class="nav">
+    <div class="nav-inner">
+      <div class="nav-left"><a href="#" onclick="return false">&larr; Academics</a></div>
+      <div class="nav-title">Grade Calculator</div>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="btnrow">
+      <button class="btn add" id="addCourseBtn">Add Course</button>
+      <button class="btn reset" id="resetBtn">Reset</button>
+    </div>
+
+    <div class="card chart-card">
+      <div class="card-title">Grade Trend</div>
+      <div class="chart-wrap">
+        <canvas id="trend" width="900" height="260" aria-label="Grade Trend Chart"></canvas>
+      </div>
+      <div class="help">
+        • Yellow line = <b>TGA</b> (Term Grade Average), Blue line = <b>CGA</b> (Cumulative Grade Average), Green line = <b>BCGA</b> (Business Core CGA).<br />
+        • <b>P / PA / PP</b> are <b>excluded</b> from TGA/CGA/BCGA calculation, but still count toward <b>Credits taken</b>.
+      </div>
+    </div>
+
+    <div class="terms" id="terms"></div>
+
+    <div class="help" style="text-align:center; margin-top:18px;">
+      HKUST scale: A+ 4.3, A 4.0, A- 3.7, B+ 3.3, B 3.0, B- 2.7, C+ 2.3, C 2.0, C- 1.7, D 1.0, F 0.
+    </div>
+  </div>
+
+  <div id="tests"></div>
+
+  <div class="overlay" id="overlay" role="dialog" aria-modal="true">
+    <div class="modal">
+      <div class="modal-h">
+        <strong id="modalTitle">Add Course</strong>
+        <button class="iconbtn" id="closeModal" aria-label="Close">✕</button>
+      </div>
+      <div class="modal-b">
+        <div class="grid">
+          <div class="field">
+            <label for="termSel">Term</label>
+            <select id="termSel"></select>
+            <div class="small" id="newTermHint" style="display:none; margin-top:6px;">Create a new term below.</div>
+          </div>
+
+          <div class="field" id="newTermBox" style="display:none;">
+            <label>New term</label>
+            <div style="display:flex; gap:10px;">
+              <select id="yearStart" style="flex:1;"></select>
+              <select id="season" style="flex:1;">
+                <option value="Fall">Fall</option>
+                <option value="Spring">Spring</option>
+                <option value="Summer">Summer</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="code">Course code</label>
+            <input id="code" placeholder="e.g., FINA2303" />
+          </div>
+
+          <div class="field">
+            <label for="name">Course name</label>
+            <input id="name" placeholder="e.g., Financial Management" />
+          </div>
+
+          <div class="field">
+            <label for="credits">Credits</label>
+            <input id="credits" type="number" step="0.5" min="0" placeholder="e.g., 3" />
+          </div>
+
+          <div class="field">
+            <label for="grade">Grade</label>
+            <select id="grade"></select>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button class="btn2 danger" id="deleteBtn" style="display:none;">Delete</button>
+          <button class="btn2" id="cancelBtn">Cancel</button>
+          <button class="btn2 primary" id="saveBtn">Save</button>
+        </div>
+
+        <div class="help">
+          Notes: Leave grade blank for ongoing courses. TGA/CGA/BCGA only use graded letter courses (A+…F).<br />
+          P/PA/PP excluded from TGA/CGA/BCGA but count toward credits taken.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    "use strict";
+
+    function uuid(){
+      try{
+        if (crypto && typeof crypto.randomUUID === "function") return crypto.randomUUID();
+      } catch {}
+      return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => {
+        const r = Math.random()*16|0;
+        const v = c === "x" ? r : (r&0x3|0x8);
+        return v.toString(16);
+      });
+    }
+
+    function escapeHtml(s){
+      return (s ?? "").toString()
+        .replaceAll("&","&amp;")
+        .replaceAll("<","&lt;")
+        .replaceAll(">","&gt;")
+        .replaceAll('"',"&quot;")
+        .replaceAll("'","&#039;");
+    }
+
+    const LETTER_POINTS = {
+      "A+":4.3, "A":4.0, "A-":3.7,
+      "B+":3.3, "B":3.0, "B-":2.7,
+      "C+":2.3, "C":2.0, "C-":1.7,
+      "D":1.0,
+      "F":0
+    };
+
+    const PASS_LIKE = new Set(["P","PA","PP"]);
+    const NON_GPA = new Set(["DI"]);
+
+    const BCGA_CODES = new Set([
+      "ACCT2010",
+      "ECON2103","ECON2113",
+      "ECON2123","ECON3123",
+      "FINA2303",
+      "ISOM2010","ISOM2020","ISOM2500","ISOM2600",
+      "MGMT2010","MGMT2130",
+      "MATH1003","MATH1013","MATH1020","MATH1023",
+      "ACCT2200","ISOM2700","MARK2120","MGMT2110",
+    ]);
+
+    function normalizeCode(raw){
+      const s = (raw ?? "").toString().trim().toUpperCase();
+      let out = "";
+      for (let i=0;i<s.length;i++){
+        const ch = s[i];
+        if (ch.trim() !== "") out += ch;
+      }
+      return out;
+    }
+
+    function normalizeGrade(raw){
+      const g = (raw ?? "").toString().trim().toUpperCase();
+      if (!g) return "";
+      if (g === "A0") return "A";
+      if (g === "B0") return "B";
+      if (g === "C0") return "C";
+      if (g === "D0") return "D";
+      return g;
+    }
+
+    function gradeToPoint(raw){
+      const g = normalizeGrade(raw);
+      if (!g) return null;
+      if (PASS_LIKE.has(g)) return null;
+      if (NON_GPA.has(g)) return null;
+      if (g in LETTER_POINTS) return LETTER_POINTS[g];
+      return null;
+    }
+
+    function isBCGACourse(courseCode){
+      return BCGA_CODES.has(normalizeCode(courseCode));
+    }
+
+    const TERM_ORDER = {Fall:1, Spring:2, Summer:3};
+
+    function termId(yearStart, season){
+      const ys = Number(yearStart);
+      const ye = ys + 1;
+      return `${ys}-${String(ye).slice(-2)} ${season}`;
+    }
+
+    function termSortKey(term){
+      return Number(term.yearStart) * 10 + (TERM_ORDER[term.season] ?? 9);
+    }
+
+    function termShortLabel(term){
+      const yy = String(term.yearStart).slice(-2);
+      const suf = term.season === "Fall" ? "F" : term.season === "Spring" ? "S" : "Su";
+      return `${yy}${suf}`;
+    }
+
+    const LS_KEY = "hkust_cga_calc_v3";
+
+    let state = {
+      terms: [
+        { id: termId(2025, "Fall"), yearStart: 2025, season: "Fall" },
+        { id: termId(2024, "Summer"), yearStart: 2024, season: "Summer" },
+        { id: termId(2024, "Spring"), yearStart: 2024, season: "Spring" },
+        { id: termId(2024, "Fall"), yearStart: 2024, season: "Fall" },
+      ],
+      courses: [
+        { id: uuid(), termId: termId(2025, "Fall"), code:"ECON2123", name:"Macroeconomics", credits:3, grade:"B" },
+        { id: uuid(), termId: termId(2025, "Fall"), code:"FINA2303", name:"Financial Management", credits:3, grade:"" },
+        { id: uuid(), termId: termId(2025, "Fall"), code:"ISOM2600", name:"Introduction to Business Analytics", credits:1, grade:"" },
+        { id: uuid(), termId: termId(2025, "Fall"), code:"LANG1411", name:"Elementary Putonghua", credits:3, grade:"" },
+        { id: uuid(), termId: termId(2025, "Fall"), code:"MARK2120", name:"Marketing Management", credits:3, grade:"" },
+        { id: uuid(), termId: termId(2025, "Fall"), code:"HUMA1000", name:"Pass-like example", credits:3, grade:"P" },
+
+        { id: uuid(), termId: termId(2024, "Summer"), code:"ISOM2020", name:"Coding for Business (example)", credits:1, grade:"B+" },
+        { id: uuid(), termId: termId(2024, "Spring"), code:"ECON2103", name:"Microeconomics (example)", credits:3, grade:"A-" },
+        { id: uuid(), termId: termId(2024, "Spring"), code:"MGMT2010", name:"Business Ethics (example)", credits:2, grade:"B" },
+        { id: uuid(), termId: termId(2024, "Fall"), code:"FINA9999", name:"Non-BC example", credits:3, grade:"B" },
+        { id: uuid(), termId: termId(2024, "Fall"), code:"ACCT2010", name:"Principles of Accounting I (example)", credits:3, grade:"A" },
+        { id: uuid(), termId: termId(2024, "Fall"), code:"ISOM2700", name:"Operations Management (example)", credits:3, grade:"B-" },
+      ]
+    };
+
+    function save(){
+      try{ localStorage.setItem(LS_KEY, JSON.stringify(state)); }catch(e){}
+    }
+
+    function load(){
+      try{
+        const raw = localStorage.getItem(LS_KEY);
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        if (!parsed || !Array.isArray(parsed.terms) || !Array.isArray(parsed.courses)) return;
+
+        state.terms = parsed.terms.map(t => ({
+          id: String(t.id),
+          yearStart: Number(t.yearStart),
+          season: String(t.season)
+        })).filter(t => t.id && Number.isFinite(t.yearStart) && t.season);
+
+        state.courses = parsed.courses.map(c => ({
+          id: String(c.id || uuid()),
+          termId: String(c.termId),
+          code: String(c.code ?? ""),
+          name: String(c.name ?? ""),
+          credits: Number(c.credits ?? 0),
+          grade: String(c.grade ?? "")
+        }));
+      }catch(e){}
+    }
+
+    function getTermsSorted(){
+      return [...state.terms].sort((a,b) => termSortKey(a) - termSortKey(b));
+    }
+
+    function coursesByTerm(tid){
+      return state.courses.filter(c => c.termId === tid);
+    }
+
+    function computeTermStats(term){
+      const courses = coursesByTerm(term.id);
+      let creditsTaken = 0;
+      let creditsCounted = 0;
+      let points = 0;
+
+      for (const c of courses){
+        const cr = Number(c.credits);
+        if (!Number.isFinite(cr) || cr <= 0) continue;
+
+        creditsTaken += cr;
+
+        const pt = gradeToPoint(c.grade);
+        if (pt === null) continue;
+
+        creditsCounted += cr;
+        points += pt * cr;
+      }
+
+      const tga = creditsCounted > 0 ? (points / creditsCounted) : 0;
+      return { creditsTaken, creditsCounted, points, tga };
+    }
+
+    function computeAllStats(){
+      const terms = getTermsSorted();
+      const termStats = new Map();
+      const cgaByTerm = new Map();
+      const bcgaByTerm = new Map();
+
+      let cumPoints = 0;
+      let cumCredits = 0;
+
+      let bcCumPoints = 0;
+      let bcCumCredits = 0;
+
+      for (const t of terms){
+        const st = computeTermStats(t);
+        termStats.set(t.id, st);
+
+        cumPoints += st.points;
+        cumCredits += st.creditsCounted;
+        cgaByTerm.set(t.id, cumCredits > 0 ? (cumPoints / cumCredits) : 0);
+
+        for (const c of coursesByTerm(t.id)){
+          if (!isBCGACourse(c.code)) continue;
+          const cr = Number(c.credits);
+          if (!Number.isFinite(cr) || cr <= 0) continue;
+          const pt = gradeToPoint(c.grade);
+          if (pt === null) continue;
+
+          bcCumCredits += cr;
+          bcCumPoints += pt * cr;
+        }
+        bcgaByTerm.set(t.id, bcCumCredits > 0 ? (bcCumPoints / bcCumCredits) : 0);
+      }
+
+      return { terms, termStats, cgaByTerm, bcgaByTerm };
+    }
+
+    const els = {
+      terms: document.getElementById("terms"),
+      trend: document.getElementById("trend"),
+      addCourseBtn: document.getElementById("addCourseBtn"),
+      resetBtn: document.getElementById("resetBtn"),
+      overlay: document.getElementById("overlay"),
+      closeModal: document.getElementById("closeModal"),
+      cancelBtn: document.getElementById("cancelBtn"),
+      saveBtn: document.getElementById("saveBtn"),
+      deleteBtn: document.getElementById("deleteBtn"),
+      modalTitle: document.getElementById("modalTitle"),
+      termSel: document.getElementById("termSel"),
+      newTermBox: document.getElementById("newTermBox"),
+      newTermHint: document.getElementById("newTermHint"),
+      yearStart: document.getElementById("yearStart"),
+      season: document.getElementById("season"),
+      code: document.getElementById("code"),
+      name: document.getElementById("name"),
+      credits: document.getElementById("credits"),
+      grade: document.getElementById("grade"),
+    };
+
+    function fmt3(x){
+      if (!Number.isFinite(x)) return "0.000";
+      return x.toFixed(3);
+    }
+
+    function fmtCredits(x){
+      if (!Number.isFinite(x)) return "0";
+      const v = Math.round(x*2)/2;
+      return (v % 1 === 0) ? v.toFixed(0) : v.toFixed(1);
+    }
+
+    function render(){
+      const { terms, termStats, cgaByTerm, bcgaByTerm } = computeAllStats();
+      const latest = terms.length ? terms[terms.length - 1].id : null;
+
+      els.terms.innerHTML = terms.slice().reverse().map(t => {
+        const st = termStats.get(t.id);
+        const cga = cgaByTerm.get(t.id) ?? 0;
+        const bcga = bcgaByTerm.get(t.id) ?? 0;
+        const openAttr = (t.id === latest) ? "open" : "";
+
+        const courses = coursesByTerm(t.id);
+        const body = courses.map(c => {
+          const g = normalizeGrade(c.grade);
+          const isFilled = Boolean(g);
+          const pillClass = isFilled ? "grade-pill filled" : "grade-pill blank";
+          const pillText = isFilled ? g : "";
+
+          const isBC = isBCGACourse(c.code);
+          const bcTag = isBC ? `<span class="bc-tag" title="Business Core (counts in BCGA)">BC</span>` : "";
+
+          return `
+            <div class="course" data-course-id="${c.id}">
+              <div class="c-left">
+                <div class="code">${escapeHtml(normalizeCode(c.code) || "(No code)")}${bcTag} <span class="meta">(${fmtCredits(Number(c.credits))} credits)</span></div>
+                <div class="name">${escapeHtml(c.name || "")}</div>
+              </div>
+              <div class="course-actions">
+                <div class="grade-pill ${pillClass}" title="Click to edit" data-action="edit">${escapeHtml(pillText)}</div>
+                <button class="iconbtn" data-action="edit" title="Edit">Edit</button>
+              </div>
+            </div>
+          `;
+        }).join("");
+
+        return `
+          <details class="term" ${openAttr} data-term-id="${escapeHtml(t.id)}">
+            <summary>
+              <div class="term-left">
+                <div class="term-name">${escapeHtml(t.id)}</div>
+                <div class="term-credits"><span>Credits:</span> ${fmtCredits(st?.creditsTaken ?? 0)}</div>
+              </div>
+              <div class="badges">
+                <div class="badge tga" title="Term Grade Average (TGA)">
+                  <div class="num">${fmt3(st?.tga ?? 0)}</div>
+                  <div class="lbl">TGA</div>
+                </div>
+                <div class="badge cga" title="Cumulative Grade Average (CGA)">
+                  <div class="num">${fmt3(cga)}</div>
+                  <div class="lbl">CGA</div>
+                </div>
+                <div class="badge bcga" title="Business Core CGA (BCGA)">
+                  <div class="num">${fmt3(bcga)}</div>
+                  <div class="lbl">BCGA</div>
+                </div>
+              </div>
+            </summary>
+            <div class="term-body">
+              ${body || `<div class="small">No courses in this term yet.</div>`}
+            </div>
+          </details>
+        `;
+      }).join("");
+
+      drawTrendChart(terms, termStats, cgaByTerm, bcgaByTerm);
+      save();
+    }
+
+    function drawTrendChart(terms, termStats, cgaByTerm, bcgaByTerm){
+      const canvas = els.trend;
+      const ctx = canvas.getContext("2d");
+
+      const rect = canvas.getBoundingClientRect();
+      const cssW = rect.width || 900;
+      const cssH = rect.height || 230;
+
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = Math.floor(cssW * dpr);
+      canvas.height = Math.floor(cssH * dpr);
+      ctx.setTransform(dpr,0,0,dpr,0,0);
+
+      const W = cssW;
+      const H = cssH;
+
+      const padL = 52;
+      const padR = 18;
+      const padT = 12;
+      const padB = 32;
+
+      ctx.clearRect(0,0,W,H);
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0,0,W,H);
+
+      const plotX = padL;
+      const plotY = padT;
+      const plotW = W - padL - padR;
+      const plotH = H - padT - padB;
+
+      const values = [];
+      for (const t of terms){
+        values.push(termStats.get(t.id)?.tga ?? 0);
+        values.push(cgaByTerm.get(t.id) ?? 0);
+        values.push(bcgaByTerm.get(t.id) ?? 0);
+      }
+
+      const dataMax = Math.max(...values, 0);
+      const positive = values.filter(v => v > 0);
+      const dataMin = positive.length ? Math.min(...positive) : 4.3;
+
+      let yMin = 2.8;
+      let yMax = 3.5;
+      if (dataMax > yMax) yMax = Math.min(4.3, Math.ceil(dataMax*10)/10 + 0.1);
+      if (dataMin < yMin) yMin = Math.max(0, Math.floor(dataMin*10)/10 - 0.1);
+
+      let tickStep = 0.07;
+      const range = yMax - yMin;
+      if (range > 1.2) tickStep = 0.1;
+
+      function yToPix(v){
+        const t = (v - yMin) / (yMax - yMin || 1);
+        return plotY + plotH - t * plotH;
+      }
+
+      ctx.strokeStyle = "rgba(15,23,42,.15)";
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4,6]);
+
+      const ticks = [];
+      for (let v = yMax; v >= yMin - 1e-9; v -= tickStep){
+        ticks.push(Math.round(v * 100) / 100);
+      }
+
+      for (const v of ticks){
+        const y = yToPix(v);
+        ctx.beginPath();
+        ctx.moveTo(plotX, y);
+        ctx.lineTo(plotX + plotW, y);
+        ctx.stroke();
+
+        ctx.setLineDash([]);
+        ctx.fillStyle = "rgba(15,23,42,.70)";
+        ctx.font = "12px system-ui";
+        ctx.textAlign = "right";
+        ctx.textBaseline = "middle";
+        ctx.fillText(v.toFixed(2), plotX - 10, y);
+        ctx.setLineDash([4,6]);
+      }
+
+      const honors = 3.36;
+      if (honors >= yMin && honors <= yMax){
+        ctx.setLineDash([6,6]);
+        ctx.strokeStyle = "rgba(15,23,42,.28)";
+        ctx.beginPath();
+        ctx.moveTo(plotX, yToPix(honors));
+        ctx.lineTo(plotX + plotW, yToPix(honors));
+        ctx.stroke();
+
+        ctx.setLineDash([]);
+        ctx.fillStyle = "rgba(15,23,42,.55)";
+        ctx.font = "12px system-ui";
+        ctx.textAlign = "left";
+        ctx.textBaseline = "bottom";
+        ctx.fillText("First Class Honors", plotX + 6, yToPix(honors) - 2);
+      }
+
+      const n = terms.length;
+      const xs = terms.map((t, i) => n === 1 ? (plotX + plotW/2) : (plotX + (i/(n-1)) * plotW));
+
+      ctx.fillStyle = "rgba(15,23,42,.70)";
+      ctx.font = "12px system-ui";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      for (let i=0;i<n;i++){
+        ctx.fillText(termShortLabel(terms[i]), xs[i], plotY + plotH + 10);
+      }
+
+      function drawLine(getY, stroke, fill){
+        if (n === 0) return;
+        ctx.strokeStyle = stroke;
+        ctx.lineWidth = 2.5;
+        ctx.setLineDash([]);
+        ctx.beginPath();
+        let started = false;
+        for (let i=0;i<n;i++){
+          const v = getY(terms[i]);
+          if (!(v > 0)) continue;
+          const x = xs[i];
+          const y = yToPix(v);
+          if (!started){ ctx.moveTo(x,y); started = true; }
+          else ctx.lineTo(x,y);
+        }
+        if (started) ctx.stroke();
+
+        for (let i=0;i<n;i++){
+          const v = getY(terms[i]);
+          if (!(v > 0)) continue;
+          const x = xs[i];
+          const y = yToPix(v);
+          ctx.fillStyle = fill;
+          ctx.beginPath();
+          ctx.arc(x, y, 4, 0, Math.PI*2);
+          ctx.fill();
+        }
+      }
+
+      drawLine((t) => termStats.get(t.id)?.tga ?? 0, "#f2c84b", "#f2c84b");
+      drawLine((t) => cgaByTerm.get(t.id) ?? 0, "#2f6df6", "#2f6df6");
+      drawLine((t) => bcgaByTerm.get(t.id) ?? 0, "#2fbf71", "#2fbf71");
+    }
+
+    let editingCourseId = null;
+
+    function openModal(courseId=null){
+      editingCourseId = courseId;
+      const isEdit = Boolean(courseId);
+
+      els.modalTitle.textContent = isEdit ? "Edit Course" : "Add Course";
+      els.deleteBtn.style.display = isEdit ? "inline-block" : "none";
+
+      const sorted = getTermsSorted();
+      els.termSel.innerHTML = [
+        ...sorted.map(t => `<option value="${escapeHtml(t.id)}">${escapeHtml(t.id)}</option>`),
+        `<option value="__new__">+ Create new term…</option>`
+      ].join("");
+
+      const now = new Date();
+      const y = now.getFullYear();
+      const years = [];
+      for (let yy = y-4; yy <= y+2; yy++) years.push(yy);
+      els.yearStart.innerHTML = years.map(yy => `<option value="${yy}">${yy}-${String(yy+1).slice(-2)}</option>`).join("");
+
+      const grades = ["", "A+","A","A-","B+","B","B-","C+","C","C-","D","F","P","PA","PP","DI"];
+      els.grade.innerHTML = grades.map(g => {
+        const label = g === "" ? "(blank / in progress)" : g;
+        return `<option value="${g}">${label}</option>`;
+      }).join("");
+
+      if (isEdit){
+        const c = state.courses.find(x => x.id === courseId);
+        if (!c){ editingCourseId = null; return; }
+        els.termSel.value = c.termId;
+        els.code.value = c.code;
+        els.name.value = c.name;
+        els.credits.value = String(c.credits ?? "");
+        els.grade.value = normalizeGrade(c.grade);
+      } else {
+        const latest = sorted.length ? sorted[sorted.length-1].id : null;
+        els.termSel.value = latest ?? "__new__";
+        els.code.value = "";
+        els.name.value = "";
+        els.credits.value = "3";
+        els.grade.value = "";
+      }
+
+      syncNewTermUI();
+      els.overlay.classList.add("show");
+      setTimeout(() => els.code.focus(), 0);
+    }
+
+    function closeModal(){
+      els.overlay.classList.remove("show");
+      editingCourseId = null;
+    }
+
+    function syncNewTermUI(){
+      const isNew = els.termSel.value === "__new__";
+      els.newTermBox.style.display = isNew ? "block" : "none";
+      els.newTermHint.style.display = isNew ? "block" : "none";
+    }
+
+    function ensureTerm(termValue){
+      if (termValue !== "__new__") return termValue;
+      const ys = Number(els.yearStart.value);
+      const season = els.season.value;
+      const id = termId(ys, season);
+      if (!state.terms.some(t => t.id === id)) state.terms.push({id, yearStart: ys, season});
+      return id;
+    }
+
+    function upsertCourse(){
+      const tid = ensureTerm(els.termSel.value);
+      const code = normalizeCode(els.code.value);
+      const name = els.name.value.trim();
+      const credits = Number(els.credits.value);
+      const grade = normalizeGrade(els.grade.value);
+
+      if (!Number.isFinite(credits) || credits < 0){
+        alert("Credits must be a non-negative number.");
+        return;
+      }
+      if (!code){
+        alert("Please enter course code.");
+        return;
+      }
+
+      if (editingCourseId){
+        const c = state.courses.find(x => x.id === editingCourseId);
+        if (!c) return;
+        c.termId = tid;
+        c.code = code;
+        c.name = name;
+        c.credits = credits;
+        c.grade = grade;
+      } else {
+        state.courses.push({ id: uuid(), termId: tid, code, name, credits, grade });
+      }
+
+      closeModal();
+      render();
+    }
+
+    function deleteCourse(){
+      if (!editingCourseId) return;
+      if (!confirm("Delete this course?")) return;
+      state.courses = state.courses.filter(c => c.id !== editingCourseId);
+      closeModal();
+      render();
+    }
+
+    function runTests(){
+      const results = [];
+      function ok(cond, msg){
+        if (!cond) throw new Error(msg);
+        results.push(`✓ ${msg}`);
+      }
+
+      ok(normalizeGrade("A0") === "A", "normalizeGrade maps A0 to A");
+      ok(normalizeGrade(" b+ ") === "B+", "normalizeGrade trims and uppercases");
+      ok(gradeToPoint("A+") === 4.3, "gradeToPoint(A+) = 4.3");
+      ok(gradeToPoint("P") === null, "gradeToPoint(P) excluded");
+      ok(gradeToPoint("") === null, "gradeToPoint(blank) ongoing");
+      ok(isBCGACourse(" fina 2303 ") === true, "isBCGACourse matches with spaces");
+      ok(isBCGACourse("LANG1411") === false, "non-business-core not BC");
+
+      const term = { id: "T", yearStart: 2025, season: "Fall" };
+      const backup = JSON.parse(JSON.stringify(state));
+      state.terms = [term];
+      state.courses = [
+        { id: uuid(), termId: "T", code:"X", name:"", credits:3, grade:"A" },
+        { id: uuid(), termId: "T", code:"Y", name:"", credits:3, grade:"P" },
+      ];
+      const st = computeTermStats(term);
+      ok(st.creditsTaken === 6, "creditsTaken includes P course");
+      ok(st.creditsCounted === 3, "creditsCounted excludes P course");
+      ok(Math.abs(st.tga - 4.0) < 1e-9, "TGA uses only letter grades");
+      state = backup;
+
+      document.getElementById("tests").innerHTML = `<b>Self-check:</b> ${results.join(" &nbsp; ")}`;
+    }
+
+    function init(){
+      load();
+
+      const knownTermIds = new Set(state.terms.map(t => t.id));
+      for (const c of state.courses){
+        if (!knownTermIds.has(c.termId)){
+          const ts = getTermsSorted();
+          c.termId = ts.length ? ts[ts.length-1].id : termId(new Date().getFullYear(), "Fall");
+        }
+      }
+
+      els.addCourseBtn.addEventListener("click", () => openModal(null));
+      els.resetBtn.addEventListener("click", () => {
+        if (!confirm("Reset everything? This will clear all saved data.")) return;
+        localStorage.removeItem(LS_KEY);
+        location.reload();
+      });
+
+      els.closeModal.addEventListener("click", closeModal);
+      els.cancelBtn.addEventListener("click", closeModal);
+      els.saveBtn.addEventListener("click", upsertCourse);
+      els.deleteBtn.addEventListener("click", deleteCourse);
+
+      els.termSel.addEventListener("change", syncNewTermUI);
+
+      els.overlay.addEventListener("click", (e) => {
+        if (e.target === els.overlay) closeModal();
+      });
+
+      document.addEventListener("click", (e) => {
+        const courseEl = e.target.closest(".course");
+        if (!courseEl) return;
+        const id = courseEl.getAttribute("data-course-id");
+        const actionBtn = e.target.closest("[data-action='edit']");
+        if (id && actionBtn) openModal(id);
+      });
+
+      window.addEventListener("resize", () => render());
+
+      runTests();
+      render();
+    }
+
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
+    else init();
+  </script>
+</body>
+</html>
