@@ -52,7 +52,7 @@
     .nav-left-link{ display:flex; align-items:center; gap:10px; opacity:.95; text-decoration:none; color:#fff; font-weight:800; font-size:14px; margin-right: 15px;}
     .nav-title{font-weight:900; letter-spacing:.2px; font-size:22px}
 
-    /* 🔥 로그인 UI 스타일 */
+    /* 🔥 로그인 버튼 스타일 */
     .auth-btn {
       background: rgba(255,255,255,0.2);
       border: 1px solid rgba(255,255,255,0.4);
@@ -134,13 +134,48 @@
     .grade-pill.grade-pass{background:#e8eef7}
     .grade-pill.grade-di{background:#e8eef7}
     .empty{padding:18px; text-align:center; color:var(--muted); font-weight:900}
+    
+    /* 🔥 Common Overlay Styles */
     .overlay{position:fixed; inset:0; background: rgba(2,6,23,.45); display:none; z-index:50}
     .overlay.show{display:block}
+    
+    /* 🔥 Editor Styles */
     .editor{position:absolute; inset:0; background:#f3f6ff; display:flex; flex-direction:column}
     .editor .topbar{background: linear-gradient(180deg, var(--nav), var(--nav2)); color:#fff; padding:14px 16px; display:flex; align-items:center; justify-content:center; position:relative}
     .editor .topbar .title{font-weight:1000; font-size:22px}
     .editor .topbar .back{position:absolute; left:12px; display:flex; align-items:center; gap:8px; font-weight:900; cursor:pointer; user-select:none}
     .editor .content{max-width:980px; width:100%; margin:0 auto; padding:16px 14px 24px; overflow:auto}
+    
+    /* 🔥 Login Modal Styles */
+    .login-modal {
+        position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+        width: 90%; max-width: 420px;
+        background: #fff; padding: 24px; border-radius: 20px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    }
+    .login-title { font-size: 20px; font-weight: 900; margin-bottom: 12px; text-align: center; }
+    .login-desc { font-size: 13px; color: var(--muted); margin-bottom: 20px; line-height: 1.5; word-break: keep-all; }
+    
+    /* 🔥 ITSC 입력창 스타일 */
+    .login-input-group {
+        display: flex; align-items: center; 
+        border: 2px solid rgba(15,23,42,.15); border-radius: 12px;
+        overflow: hidden; margin-bottom: 20px;
+    }
+    .login-input-group input {
+        flex: 1; border: 0; padding: 12px; font-size: 16px; font-weight: 700; outline: none;
+        text-align: right;
+    }
+    .login-input-group span {
+        background: #f1f5f9; padding: 12px; font-size: 14px; font-weight: 800; color: var(--muted);
+        border-left: 1px solid rgba(15,23,42,.1);
+    }
+    .login-submit-btn {
+        width: 100%; padding: 14px; border-radius: 12px; border: 0;
+        background: linear-gradient(180deg, var(--nav), var(--nav2)); color: #fff;
+        font-weight: 900; font-size: 16px; cursor: pointer;
+    }
+    
     .field{margin:14px 0 18px}
     .field label{display:block; font-weight:1000; color:rgba(15,23,42,.65); margin-bottom:8px}
     .input{width:100%; height:44px; border-radius:12px; border:1px solid rgba(15,23,42,.14); padding:0 12px; font-weight:900; outline:none; background:#fff}
@@ -171,8 +206,7 @@
         <div class="nav-title">Grade Calculator</div>
       </div>
       <div id="authSection">
-        <button id="loginBtn" class="auth-btn">Sign In</button>
-      </div>
+        </div>
     </div>
   </div>
 
@@ -206,7 +240,7 @@
   <div class="overlay" id="overlay" aria-hidden="true">
     <div class="editor" role="dialog" aria-modal="true">
       <div class="topbar">
-        <div class="back" id="closeEditor">← <span>Grade Calculator</span></div>
+        <div class="back" id="closeEditor">← <span>Back</span></div>
         <div class="title" id="editorTitle">Add Course</div>
       </div>
       <div class="content">
@@ -242,10 +276,32 @@
     </div>
   </div>
 
+  <div class="overlay" id="loginOverlay" aria-hidden="true">
+    <div class="login-modal" role="dialog">
+      <div class="login-title">Student Login</div>
+      <div class="login-desc">
+        No password required. Enter your ITSC below and we'll send you a magic link.<br><br>
+        ⚠️ <b>Important:</b> You must open the email link <b>ON THIS DEVICE</b> to login.<br>
+        (If you open it on your phone, your computer won't log in.)
+      </div>
+      <div class="field">
+        <label>HKUST Email</label>
+        <div class="login-input-group">
+            <input type="text" id="itscInput" placeholder="e.g. abcd" autofocus>
+            <span>@connect.ust.hk</span>
+        </div>
+      </div>
+      <button class="login-submit-btn" id="sendLinkBtn">Send Login Link</button>
+      <div style="text-align:center; margin-top:12px;">
+          <a href="#" id="closeLoginBtn" style="color:#6a7b91; font-size:12px; text-decoration:none; font-weight:700">Cancel</a>
+      </div>
+    </div>
+  </div>
+
   <script>
     "use strict";
 
-    /* 🔥 2. Firebase 설정 영역 (학우님이 주신 값으로 채워넣음) 🔥 */
+    /* 🔥 Firebase 설정 (학우님 키 적용 완료) */
     const firebaseConfig = {
       apiKey: "AIzaSyCOmZrU-IoGxydX7FciCRul2X-K2k5C3es",
       authDomain: "ust-bcga-calc.firebaseapp.com",
@@ -262,7 +318,6 @@
       firebase.initializeApp(firebaseConfig);
       db = firebase.firestore();
       auth = firebase.auth();
-      // analytics는 html script 태그에 추가 안 해서 에러 날 수 있으니 일단 뺌 (작동에 문제 없음)
     } catch(e) { console.error("Firebase Init Error:", e); }
 
     const ALLOWED_DOMAIN = "connect.ust.hk";
@@ -298,7 +353,7 @@
     const TERM_ORDER = {Fall:1, Winter:2, Spring:3, Summer:4};
 
     let state = { terms: [], courses: [] };
-    let currentUser = null; // 현재 로그인한 사용자
+    let currentUser = null; 
 
     const els = {
       terms: document.getElementById("terms"),
@@ -317,58 +372,105 @@
       removeBtn: document.getElementById("removeBtn"),
       okBtn: document.getElementById("okBtn"),
       authSection: document.getElementById("authSection"),
-      loginBtn: document.getElementById("loginBtn")
+      // Login Modal Elements
+      loginOverlay: document.getElementById("loginOverlay"),
+      itscInput: document.getElementById("itscInput"),
+      sendLinkBtn: document.getElementById("sendLinkBtn"),
+      closeLoginBtn: document.getElementById("closeLoginBtn")
     };
 
-    /* 🔥 3. Firebase Auth & DB Logic */
+    /* 🔥 Auth Logic */
 
     function updateAuthUI(user) {
       if (user) {
         els.authSection.innerHTML = `
-          <span class="user-info">${escapeHtml(user.email)}</span>
-          <button id="logoutBtn" class="auth-btn">Sign Out</button>
+          <div style="display:flex; align-items:center;">
+             <span class="user-info">${escapeHtml(user.email)}</span>
+             <button id="logoutBtn" class="auth-btn">Sign Out</button>
+          </div>
         `;
         document.getElementById("logoutBtn").addEventListener("click", () => {
           auth.signOut().then(() => {
-            alert("Signed out.");
             window.location.reload();
           });
         });
       } else {
-        els.authSection.innerHTML = `<button id="loginBtn" class="auth-btn">Sign In</button>`;
-        document.getElementById("loginBtn").addEventListener("click", handleLoginClick);
+        // 로그인 안내 문구
+        els.authSection.innerHTML = `
+          <div style="text-align:right">
+            <button id="loginBtn" class="auth-btn">Sign In</button>
+            <div style="font-size:10px; color:#e2ecff; margin-top:4px; opacity:0.8;">
+               ⚠️ Check <b>Spam Box</b> for login link
+            </div>
+          </div>
+        `;
+        document.getElementById("loginBtn").addEventListener("click", showLoginModal);
       }
     }
 
-    function handleLoginClick() {
-      if (!auth) {
-        alert("Firebase not initialized!");
-        return;
-      }
-      const email = prompt("Please enter your HKUST email (@connect.ust.hk):");
-      if (!email) return;
-      
-      // 이메일 도메인 체크
-      if (!email.trim().toLowerCase().endsWith(ALLOWED_DOMAIN)) {
-        alert(`Only emails ending with ${ALLOWED_DOMAIN} are allowed.`);
-        return;
-      }
-
-      const actionCodeSettings = {
-        url: window.location.href, 
-        handleCodeInApp: true
-      };
-
-      auth.sendSignInLinkToEmail(email, actionCodeSettings)
-        .then(() => {
-          window.localStorage.setItem('emailForSignIn', email);
-          alert(`Verification link sent to ${email}.\nPlease check your inbox (and spam folder).`);
-        })
-        .catch((error) => {
-          console.error(error);
-          alert("Error sending email: " + error.message);
-        });
+    // 로그인 모달 열기
+    function showLoginModal() {
+        els.loginOverlay.classList.add("show");
+        els.loginOverlay.setAttribute("aria-hidden", "false");
+        els.itscInput.value = "";
+        setTimeout(() => els.itscInput.focus(), 100);
     }
+    
+    // 로그인 모달 닫기
+    function closeLoginModal() {
+        els.loginOverlay.classList.remove("show");
+        els.loginOverlay.setAttribute("aria-hidden", "true");
+    }
+
+    // 이메일 전송 (ITSC + 도메인 자동 완성)
+    function sendLoginEmail() {
+        if (!auth) return;
+        const itsc = els.itscInput.value.trim();
+        if (!itsc) {
+            alert("Please enter your ITSC account.");
+            return;
+        }
+        
+        // 아이디만 적었으면 도메인 자동 완성
+        const email = itsc + "@connect.ust.hk";
+
+        const actionCodeSettings = {
+            url: window.location.href, 
+            handleCodeInApp: true
+        };
+
+        els.sendLinkBtn.innerText = "Sending...";
+        els.sendLinkBtn.disabled = true;
+
+        auth.sendSignInLinkToEmail(email, actionCodeSettings)
+            .then(() => {
+                window.localStorage.setItem('emailForSignIn', email);
+                alert(`Link sent to ${email}!\n\nIMPORTANT: Please open the email link ON THIS DEVICE.`);
+                closeLoginModal();
+            })
+            .catch((error) => {
+                console.error(error);
+                alert("Error: " + error.message);
+            })
+            .finally(() => {
+                els.sendLinkBtn.innerText = "Send Login Link";
+                els.sendLinkBtn.disabled = false;
+            });
+    }
+
+    // ITSC 입력창에서 엔터키 치면 전송
+    els.itscInput.addEventListener("keyup", (e) => {
+        if (e.key === "Enter") sendLoginEmail();
+    });
+
+    els.sendLinkBtn.addEventListener("click", sendLoginEmail);
+    els.closeLoginBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        closeLoginModal();
+    });
+    els.loginOverlay.addEventListener("click", (e) => {
+        if (e.target === els.loginOverlay) closeLoginModal();
+    });
 
     async function loadUserData(user) {
         if (!db) return;
@@ -397,7 +499,6 @@
         }
     }
 
-    // 페이지 로드 시 로그인 상태 확인
     if (auth) {
       auth.onAuthStateChanged((user) => {
         currentUser = user;
@@ -405,13 +506,11 @@
         if (user) {
           loadUserData(user);
         } else {
-          // 로그아웃 상태면 로컬 초기화 (또는 로컬스토리지 사용 등 원하는대로)
           state = { terms: [], courses: [] };
           render();
         }
       });
 
-      // 이메일 링크 클릭해서 들어왔을 때 처리
       if (auth.isSignInWithEmailLink(window.location.href)) {
         let email = window.localStorage.getItem('emailForSignIn');
         if (!email) {
@@ -420,8 +519,6 @@
         auth.signInWithEmailLink(email, window.location.href)
           .then((result) => {
             window.localStorage.removeItem('emailForSignIn');
-            // 로그인 성공! (onAuthStateChanged가 자동으로 호출됨)
-            // URL에서 지저분한 쿼리 제거
             window.history.replaceState({}, document.title, window.location.pathname);
           })
           .catch((error) => {
@@ -432,7 +529,7 @@
     }
 
     /* ========================================= */
-
+    /* 기존 계산기 로직 (변경 없음) */
     function normalizeCode(raw){
       const s = (raw ?? "").toString().trim().toUpperCase();
       let out = "";
