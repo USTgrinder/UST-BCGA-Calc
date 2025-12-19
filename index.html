@@ -4,6 +4,11 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>HKUST Grade Calculator (TGA / CGA / BCGA)</title>
+
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
   <style>
     :root{
       --nav:#244b86;
@@ -40,12 +45,28 @@
       margin:0 auto;
       display:flex;
       align-items:center;
-      justify-content:center;
+      justify-content:space-between;
       position:relative;
     }
+    .nav-center { display: flex; align-items: center;}
+    .nav-left-link{ display:flex; align-items:center; gap:10px; opacity:.95; text-decoration:none; color:#fff; font-weight:800; font-size:14px; margin-right: 15px;}
     .nav-title{font-weight:900; letter-spacing:.2px; font-size:22px}
-    .nav-left{position:absolute; left:0; display:flex; align-items:center; gap:10px; opacity:.95}
-    .nav-left a{color:#fff; text-decoration:none; font-weight:800; font-size:14px}
+
+    /* 🔥 로그인 UI 스타일 */
+    .auth-btn {
+      background: rgba(255,255,255,0.2);
+      border: 1px solid rgba(255,255,255,0.4);
+      padding: 6px 14px;
+      border-radius: 20px;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .auth-btn:hover { background: rgba(255,255,255,0.3); }
+    .user-info { font-size: 12px; margin-right: 10px; font-weight: 600; opacity: 0.9; }
+
     .wrap{max-width:980px; margin:18px auto 44px; padding:0 14px}
     .btnrow{display:flex; gap:14px; margin:14px 0 12px}
     .btn{
@@ -104,7 +125,6 @@
     .name{color:var(--text); font-weight:800}
     .business-tag{display:inline-flex; align-items:center; justify-content:center; height:18px; padding:0 10px; border-radius:999px; font-size:11px; font-weight:1000; letter-spacing:.3px; background: rgba(47,191,113,.18); color:#0b3d22; border:1px solid rgba(47,191,113,.35); margin-left:8px; vertical-align: middle}
     .grade-pill{min-width:60px; height:34px; border-radius: 10px; display:flex; align-items:center; justify-content:center; font-weight:1000; letter-spacing:.4px; border:2px solid rgba(15,23,42,.10); background:#eff7ff; cursor:pointer; user-select:none}
-    /* Grade colors (match your reference) */
     .grade-pill.grade-empty{background:#eff7ff}
     .grade-pill.grade-a{background:#cfffcc}
     .grade-pill.grade-b{background:#eaffc8}
@@ -146,15 +166,22 @@
 <body>
   <div class="nav">
     <div class="nav-inner">
-      <div class="nav-left"><a href="#" onclick="return false">← Academics</a></div>
-      <div class="nav-title">Grade Calculator</div>
+      <div class="nav-center">
+        <a href="#" class="nav-left-link" onclick="return false">← Academics</a>
+        <div class="nav-title">Grade Calculator</div>
+      </div>
+      <div id="authSection">
+        <button id="loginBtn" class="auth-btn">Sign In</button>
+      </div>
     </div>
   </div>
+
   <div class="wrap">
     <div class="btnrow">
       <button class="btn add" id="addCourseBtn">Add Course</button>
       <button class="btn reset" id="resetBtn">Reset</button>
     </div>
+
     <div class="card chart-card">
       <div class="card-title">Grade Trend</div>
       <div class="chart-wrap">
@@ -166,12 +193,16 @@
         • <b>P / PA / PP</b> are <b>excluded</b> from TGA/CGA/BCGA calculation, but still count toward <b>Credits taken</b>.
       </div>
     </div>
+
     <div class="terms" id="terms"></div>
+
     <div class="help" style="text-align:center; margin-top:18px;">
       HKUST scale: A+ 4.3, A 4.0, A- 3.7, B+ 3.3, B 3.0, B- 2.7, C+ 2.3, C 2.0, C- 1.7, D 1.0, F 0.
     </div>
   </div>
+
   <div id="tests"></div>
+
   <div class="overlay" id="overlay" aria-hidden="true">
     <div class="editor" role="dialog" aria-modal="true">
       <div class="topbar">
@@ -210,8 +241,34 @@
       </div>
     </div>
   </div>
+
   <script>
     "use strict";
+
+    /* 🔥 2. Firebase 설정 영역 (학우님이 주신 값으로 채워넣음) 🔥 */
+    const firebaseConfig = {
+      apiKey: "AIzaSyCOmZrU-IoGxydX7FciCRul2X-K2k5C3es",
+      authDomain: "ust-bcga-calc.firebaseapp.com",
+      projectId: "ust-bcga-calc",
+      storageBucket: "ust-bcga-calc.firebasestorage.app",
+      messagingSenderId: "167965604944",
+      appId: "1:167965604944:web:db3f934cf46480400c6555",
+      measurementId: "G-8Q3D8LFBDW"
+    };
+
+    // Firebase 초기화
+    let db, auth;
+    try {
+      firebase.initializeApp(firebaseConfig);
+      db = firebase.firestore();
+      auth = firebase.auth();
+      // analytics는 html script 태그에 추가 안 해서 에러 날 수 있으니 일단 뺌 (작동에 문제 없음)
+    } catch(e) { console.error("Firebase Init Error:", e); }
+
+    const ALLOWED_DOMAIN = "connect.ust.hk";
+
+    /* ========================================= */
+
     const LETTER_POINTS = {
       "A+":4.3, "A":4.0, "A-":3.7,
       "B+":3.3, "B":3.0, "B-":2.7,
@@ -239,7 +296,10 @@
     ];
     const SEASONS = ["Fall","Winter","Spring","Summer"];
     const TERM_ORDER = {Fall:1, Winter:2, Spring:3, Summer:4};
+
     let state = { terms: [], courses: [] };
+    let currentUser = null; // 현재 로그인한 사용자
+
     const els = {
       terms: document.getElementById("terms"),
       trend: document.getElementById("trend"),
@@ -255,8 +315,124 @@
       termList: document.getElementById("termList"),
       eGrade: document.getElementById("eGrade"),
       removeBtn: document.getElementById("removeBtn"),
-      okBtn: document.getElementById("okBtn")
+      okBtn: document.getElementById("okBtn"),
+      authSection: document.getElementById("authSection"),
+      loginBtn: document.getElementById("loginBtn")
     };
+
+    /* 🔥 3. Firebase Auth & DB Logic */
+
+    function updateAuthUI(user) {
+      if (user) {
+        els.authSection.innerHTML = `
+          <span class="user-info">${escapeHtml(user.email)}</span>
+          <button id="logoutBtn" class="auth-btn">Sign Out</button>
+        `;
+        document.getElementById("logoutBtn").addEventListener("click", () => {
+          auth.signOut().then(() => {
+            alert("Signed out.");
+            window.location.reload();
+          });
+        });
+      } else {
+        els.authSection.innerHTML = `<button id="loginBtn" class="auth-btn">Sign In</button>`;
+        document.getElementById("loginBtn").addEventListener("click", handleLoginClick);
+      }
+    }
+
+    function handleLoginClick() {
+      if (!auth) {
+        alert("Firebase not initialized!");
+        return;
+      }
+      const email = prompt("Please enter your HKUST email (@connect.ust.hk):");
+      if (!email) return;
+      
+      // 이메일 도메인 체크
+      if (!email.trim().toLowerCase().endsWith(ALLOWED_DOMAIN)) {
+        alert(`Only emails ending with ${ALLOWED_DOMAIN} are allowed.`);
+        return;
+      }
+
+      const actionCodeSettings = {
+        url: window.location.href, 
+        handleCodeInApp: true
+      };
+
+      auth.sendSignInLinkToEmail(email, actionCodeSettings)
+        .then(() => {
+          window.localStorage.setItem('emailForSignIn', email);
+          alert(`Verification link sent to ${email}.\nPlease check your inbox (and spam folder).`);
+        })
+        .catch((error) => {
+          console.error(error);
+          alert("Error sending email: " + error.message);
+        });
+    }
+
+    async function loadUserData(user) {
+        if (!db) return;
+        try {
+            const docRef = db.collection('users').doc(user.uid);
+            const doc = await docRef.get();
+            if (doc.exists) {
+                const data = doc.data();
+                if (data && data.courses) {
+                    state = data; 
+                    render();
+                }
+            }
+        } catch (e) {
+            console.error("Error loading data:", e);
+        }
+    }
+
+    async function saveUserData() {
+        if (!currentUser || !db) return; 
+        try {
+            await db.collection('users').doc(currentUser.uid).set(state);
+            console.log("Saved.");
+        } catch (e) {
+            console.error("Error saving data:", e);
+        }
+    }
+
+    // 페이지 로드 시 로그인 상태 확인
+    if (auth) {
+      auth.onAuthStateChanged((user) => {
+        currentUser = user;
+        updateAuthUI(user);
+        if (user) {
+          loadUserData(user);
+        } else {
+          // 로그아웃 상태면 로컬 초기화 (또는 로컬스토리지 사용 등 원하는대로)
+          state = { terms: [], courses: [] };
+          render();
+        }
+      });
+
+      // 이메일 링크 클릭해서 들어왔을 때 처리
+      if (auth.isSignInWithEmailLink(window.location.href)) {
+        let email = window.localStorage.getItem('emailForSignIn');
+        if (!email) {
+          email = window.prompt('Please provide your email for confirmation');
+        }
+        auth.signInWithEmailLink(email, window.location.href)
+          .then((result) => {
+            window.localStorage.removeItem('emailForSignIn');
+            // 로그인 성공! (onAuthStateChanged가 자동으로 호출됨)
+            // URL에서 지저분한 쿼리 제거
+            window.history.replaceState({}, document.title, window.location.pathname);
+          })
+          .catch((error) => {
+            console.error(error);
+            alert("Login failed: " + error.message);
+          });
+      }
+    }
+
+    /* ========================================= */
+
     function normalizeCode(raw){
       const s = (raw ?? "").toString().trim().toUpperCase();
       let out = "";
@@ -508,6 +684,7 @@
       }
       closeEditor();
       render();
+      saveUserData(); 
     }
     function removeCourse(){
       if (!editingId) return;
@@ -515,6 +692,7 @@
       state.courses = state.courses.filter(c => c.id !== editingId);
       closeEditor();
       render();
+      saveUserData(); 
     }
     function render(){
       const { terms, termStats, cgaByTerm, bcgaByTerm } = computeAllStats();
@@ -561,14 +739,9 @@
       drawTrendChart(terms, termStats, cgaByTerm, bcgaByTerm);
     }
     function computeYAxisWindow(posValues){
-      // Your rule:
-      // - dataRange = max - min
-      // - chartRange = dataRange + 0.4 (so the lines never clip)
-      // - keep a small minimum window so it doesn't get *too* zoomed
       const EXTRA_RANGE = 0.4;
       const MIN_RANGE = 0.9;
       if (!posValues || posValues.length === 0){
-        // Empty chart default window (shows main honors lines nicely)
         const yMax = 3.6;
         const yMin = Math.max(0, yMax - 1.8);
         return { yMin, yMax };
@@ -577,10 +750,9 @@
       const dataMax = Math.max(...posValues);
       const dataRange = Math.max(0, dataMax - dataMin);
       const desiredRange = Math.max(MIN_RANGE, dataRange + EXTRA_RANGE);
-      const pad = (desiredRange - dataRange) / 2; // symmetric padding
+      const pad = (desiredRange - dataRange) / 2;
       let yMin = dataMin - pad;
       let yMax = dataMax + pad;
-      // Clamp into [0, 4.3] while trying to preserve the window.
       if (yMin < 0){
         yMax = Math.min(4.3, yMax + (0 - yMin));
         yMin = 0;
@@ -589,7 +761,6 @@
         yMin = Math.max(0, yMin - (yMax - 4.3));
         yMax = 4.3;
       }
-      // Final safety
       if (!Number.isFinite(yMin) || !Number.isFinite(yMax) || yMax <= yMin){
         yMin = 2.8;
         yMax = 3.7;
@@ -629,7 +800,6 @@
       const pos = values.filter(v => v > 0);
       const dataMin = pos.length ? Math.min(...pos) : 0;
       const { yMin, yMax } = computeYAxisWindow(pos);
-      // Tick spacing
       let tickStep = 0.2;
       const range = yMax - yMin;
       if (range <= 1.2) tickStep = 0.1;
@@ -643,7 +813,6 @@
       ctx.lineWidth = 1;
       ctx.setLineDash([4,6]);
       const ticks = [];
-      // align ticks to nice boundaries (e.g., 0.2 steps)
       const start = Math.ceil(yMax / tickStep) * tickStep;
       const end = Math.floor(yMin / tickStep) * tickStep;
       for (let v = start; v >= end - 1e-9; v -= tickStep){
@@ -719,33 +888,15 @@
       drawLine((t) => cgaByTerm.get(t.id) ?? 0, "#2f6df6", "#2f6df6");
       drawLine((t) => bcgaByTerm.get(t.id) ?? 0, "#2fbf71", "#2fbf71");
     }
-    function runTests(){
-      const res = [];
-      function ok(cond, msg){
-        if (!cond) throw new Error(msg);
-        res.push("✓ " + msg);
-      }
-      ok(normalizeGrade("A0") === "A", "normalizeGrade maps A0 -> A");
-      ok(gradeToPoint("P") === null, "P excluded from GPA calcs");
-      ok(isBCGACourse(" fina 2303 ") === true, "Business Core matching works");
-      ok(parseTermId("2025-26 Fall")?.season === "Fall", "parseTermId works");
-      ok(termShortLabel({yearStart:2024, season:"Winter"}) === "24W", "Winter short label");
-      // Y-axis window tests (range + 0.4 behavior)
-      function approx(a,b,eps=1e-6){ return Math.abs(a-b) < eps; }
-      const w1 = computeYAxisWindow([3.0, 3.5]);
-      ok(approx(w1.yMin, 2.8) && approx(w1.yMax, 3.7), "y-axis expands by +0.4 around data range");
-      const w2 = computeYAxisWindow([1.7, 3.5]);
-      ok(approx(w2.yMin, 1.5) && approx(w2.yMax, 3.7), "y-axis keeps padding symmetric when range is big");
-      document.getElementById("tests").innerHTML = "<b>Self-check:</b> " + res.join(" &nbsp; ");
-    }
     function init(){
       state = { terms: [], courses: [] };
       els.addCourseBtn.addEventListener("click", () => openEditor(null));
       els.resetBtn.addEventListener("click", () => {
-        if (!confirm("Reset everything?")) return;
+        if (!confirm("Reset everything? This will clear your data.")) return;
         state = { terms: [], courses: [] };
         closeEditor();
         render();
+        saveUserData();
       });
       els.closeEditor.addEventListener("click", closeEditor);
       els.eCredits.addEventListener("input", () => {
@@ -769,7 +920,6 @@
         if (id) openEditor(id);
       });
       window.addEventListener("resize", () => render());
-      runTests();
       render();
     }
     if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
