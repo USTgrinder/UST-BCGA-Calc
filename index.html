@@ -608,7 +608,13 @@
       return [...state.terms].sort((a,b) => termSortKey(a) - termSortKey(b));
     }
     function coursesByTerm(tid){
-      return state.courses.filter(c => c.termId === tid);
+      return state.courses
+        .filter(c => c.termId === tid)
+        .sort((a, b) => {
+          const codeA = normalizeCode(a.code);
+          const codeB = normalizeCode(b.code);
+          return codeA.localeCompare(codeB);
+        });
     }
     function computeTermStats(term){
       const courses = coursesByTerm(term.id);
